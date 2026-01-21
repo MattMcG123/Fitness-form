@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Fitness Intake → 12-Week Plan</title>
+  <style>
+    :root { --b:#e6e6e6; --t:#111; --m:#666; --bg:#fff; }
+    body { font-family: system-ui, Arial, sans-serif; color:var(--t); background:var(--bg);
+      max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    h1 { font-size: 1.8rem; margin: 0 0 6px; }
+    h2 { margin: 0 0 10px; font-size: 1.2rem; }
+    .muted { color:var(--m); }
+    .card { border: 1px solid var(--b); border-radius: 14px; padding: 16px; margin: 14px 0; }
+    .q { padding: 12px 0; border-top: 1px dashed var(--b); }
+    .q:first-child { border-top: 0; padding-top: 0; }
+    label { font-weight: 650; display:block; margin-bottom: 8px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+    select, input[type="number"], input[type="text"] {
+      padding: 10px 12px; border-radius: 12px; border: 1px solid var(--b); min-width: 220px;
+    }
+    textarea { width:100%; min-height: 320px; padding: 12px; border-radius: 12px; border: 1px solid var(--b); }
+    button { padding: 10px 14px; border-radius: 12px; border: 1px solid var(--b); background: #fafafa; cursor:pointer; }
+    button:hover { background:#f2f2f2; }
+    .hidden { display:none; }
+    .warn { background:#fff7e6; border:1px solid #ffe2a8; padding:10px 12px; border-radius: 12px; }
+    .danger { background:#ffecec; border:1px solid #ffc0c0; padding:10px 12px; border-radius: 12px; }
+    .pill { display:inline-block; padding: 4px 10px; border:1px solid var(--b); border-radius: 999px; font-size: 0.9rem; margin-right: 8px; }
+    .topbar { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:center; }
+    .progressWrap { flex: 1; min-width: 220px; }
+    .progressBar { height: 10px; background:#f2f2f2; border:1px solid var(--b); border-radius:999px; overflow:hidden; }
+    .progressFill { height:100%; width:0%; background:#ddd; }
+    .printOnly { display:none; }
+
+    /* Print-to-PDF friendly */
+    @media print {
+      body { max-width: none; margin: 0; padding: 0; }
+      .noPrint { display:none !important; }
+      .card { border: none; border-radius: 0; margin: 0; padding: 0; }
+      textarea { border: none; min-height: auto; }
+      .printOnly { display:block; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar noPrint">
+    <div>
+      <h1>Fitness Intake → 12-Week Plan</h1>
+      <div class="muted">Static site. Answers stay in your browser only (localStorage). Export via “Print / Save as PDF”.</div>
+    </div>
+    <div class="row">
+      <button id="resetBtn" title="Clears saved answers">Reset</button>
+      <button id="buildBtn">Generate Plan</button>
+      <button id="printBtn" class="hidden">Print / Save as PDF</button>
+    </div>
+  </div>
+
+  <div class="card noPrint">
+    <div class="row">
+      <div class="progressWrap">
+        <div class="muted" id="progressText">Progress: 0%</div>
+        <div class="progressBar"><div class="progressFill" id="progressFill"></div></div>
+      </div>
+      <div>
+        <span class="pill">BMI-free</span>
+        <span class="pill">Teen-safe defaults</span>
+        <span class="pill">Gym/Home plans</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card noPrint">
+    <div class="warn">
+      <strong>Important:</strong> This tool is educational and not medical advice.
+      If you have pain, medical conditions, or a history of disordered eating, talk with a qualified professional
+      before making big changes.
+    </div>
+  </div>
+
+  <div id="form" class="noPrint"></div>
+
+  <div class="card">
+    <div class="printOnly">
+      <h2>12-Week Fitness Plan</h2>
+      <div class="muted">Generated from your intake answers.</div>
+      <hr />
+    </div>
+
+    <h2 class="noPrint">Your 12-Week Plan</h2>
+    <div class="muted noPrint" style="margin-bottom:10px;">
+      Generated from your answers. Updates when you click “Generate Plan”.
+    </div>
+    <textarea id="output" placeholder="Click “Generate Plan”…"></textarea>
+  </div>
+
+<script>
+/* ---------------------------
+   DATA + STORAGE
+----------------------------*/
+const STORAGE_KEY = "fitness_intake_all_v1";
+let state = loadState();
+
+function loadState(){
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+  catch { return {}; }
+}
+function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function setDefault(key, val){ if (state[key] === undefined) state[key] = val; }
+
+/* ---------------------------
+   QUESTIONS (skip logic)
+----------------------------*/
+const QUESTIONS = [
+  {
+    section: "Basic Information (Used to Personalize Your Plan)",
+    items: [
+      { key:"age", type:"number", label:"What is your age?", min: 13, max: 80 },
+      { key:"gender", type:"select", label:"Which best describes you?",
+        options:["Male","Female","Non-binary / another identity","Prefer not to say"]
+      },
+      { key:"weight", type:"number", label:"Current body weight (estimate is fine)" },
+      { key:"weightUnit", type:"select", label:"Weight unit", options:["lb","kg"] }
+    ]
+  },
+  {
+    section: "Safety & Limits",
+    items: [
+      { key:"painNow", type:"yesno", label:"Do you have pain right now that worsens with movement?" },
+      { key:"painJoint", type:"select", label:"If yes, where is it mostly?",
+        options:["Knee","Shoulder","Back","Hip","Other"], showIf:s=>s.painNow==="yes"
+      },
+      { key:"medical", type:"yesno", label:"Any medical condition that affects exercise (asthma/diabetes/heart/etc.)?" },
+      { key:"surgeries", type:"yesno", label:"Any surgeries in the last 12 months?" },
+      { key:"edHistory", type:"yesno", label:"History of disordered eating or extreme restriction?" }
+    ]
+  },
+  {
+    section: "Lifestyle & Schedule",
+    items: [
+      { key:"daysLift", type:"select", label:"How many days per week can you realistically lift?",
+        options:["2","3","4","5"] },
+      { key:"sessionMins", type:"select", label:"Typical session length you can commit to",
+        options:["20–30","30–45","45–60","60+"] },
+      { key:"stepsNow", type:"select", label:"Average daily steps right now (estimate)",
+        options:["<3k","3–6k","6–9k","9k+"] },
+      { key:"sleep7", type:"yesno", label:"Do you sleep at least ~7 hours most nights?" },
+      { key:"stressHigh", type:"yesno", label:"Is your stress high most days?" }
+    ]
+  },
+  {
+    section: "Training Setup",
+    items: [
+      { key:"gym", type:"yesno", label:"Do you have gym access?" },
+      { key:"homeEquip", type:"select", label:"If no gym, what equipment do you have?",
+        options:["None","Bands","Dumbbells/Kettlebells","Pull-up bar","Mix"], showIf:s=>s.gym==="no"
+      },
+      { key:"experience", type:"select", label:"Training experience",
+        options:["New (0–3 months)","Some (3–12 months)","Consistent (1+ year)"] },
+      { key:"likesCardio", type:"yesno", label:"Do you enjoy cardio?" }
+    ]
+  },
+  {
+    section: "Nutrition Reality",
+    items: [
+      { key:"proteinMeals", type:"select", label:"How often do you include a solid protein source?",
+        options:["0–1 meals/day","2 meals/day","3+ meals/day"] },
+      { key:"cookOften", type:"yesno", label:"Can you cook or assemble 4+ meals per week?" },
+      { key:"sugaryDrinks", type:"yesno", label:"Do you drink sugary drinks daily?" },
+      { key:"lateSnacks", type:"yesno", label:"Do you snack late at night most nights?" },
+      { key:"dietLimits", type:"yesno", label:"Any dietary restrictions (allergies, intolerances, vegetarian/vegan)?" },
+      { key:"dietLimitText", type:"text", label:"If yes, what are they? (short)",
+        showIf:s=>s.dietLimits==="yes"
+      }
+    ]
+  },
+  {
+    section: "Mindset, Check-ins, and Progression Calculator",
+    items: [
+      { key:"consistencyMain", type:"yesno", label:"Is consistency your biggest struggle (more than knowing what to do)?" },
+      { key:"bigBarrier", type:"select", label:"Biggest barrier most weeks",
+        options:["Time","Motivation","Stress","Food environment","Sleep","Pain/Injury","Other"] },
+      { key:"checkIns", type:"yesno", label:"Are you willing to do a quick check-in every 4 weeks and adjust?" },
+
+      // Progression calculator (optional)
+      { key:"calcUse", type:"yesno", label:"Want a simple progression calculator for one lift? (optional)" },
+      { key:"calcLift", type:"select", label:"Pick a lift",
+        options:["Squat","Bench Press","Deadlift","Overhead Press","Row"], showIf:s=>s.calcUse==="yes"
+      },
+      { key:"calcWeight", type:"number", label:"Weight used (number)", showIf:s=>s.calcUse==="yes" },
+      { key:"calcReps", type:"number", label:"Reps completed (number)", showIf:s=>s.calcUse==="yes" },
+      { key:"calcUnit", type:"select", label:"Unit", options:["lb","kg"], showIf:s=>s.calcUse==="yes" },
+
+      // Check-ins (optional; used to adjust weeks 9–12)
+      { key:"wk4Adherence", type:"select", label:"(Check-in) Week 4: How consistent were you?",
+        options:["Not started","<50%","50–75%","75%+"], showIf:s=>s.checkIns==="yes"
+      },
+      { key:"wk4Energy", type:"select", label:"(Check-in) Week 4: Energy level most days",
+        options:["Low","Okay","Good"], showIf:s=>s.checkIns==="yes"
+      },
+      { key:"wk8Adherence", type:"select", label:"(Check-in) Week 8: How consistent were you?",
+        options:["Not started","<50%","50–75%","75%+"], showIf:s=>s.checkIns==="yes"
+      },
+      { key:"wk8Energy", type:"select", label:"(Check-in) Week 8: Energy level most days",
+        options:["Low","Okay","Good"], showIf:s=>s.checkIns==="yes"
+      }
+    ]
+  }
+];
+
+/* ---------------------------
+   UI HELPERS
+----------------------------*/
+function shouldShow(item){
+  if (!item.showIf) return true;
+  try { return item.showIf(state); } catch { return true; }
+}
+
+function createSelect({key, options}){
+  const sel = document.createElement("select");
+  sel.dataset.key = key;
+  const ph = document.createElement("option");
+  ph.value = ""; ph.textContent = "Choose…";
+  sel.appendChild(ph);
+  options.forEach(opt=>{
+    const o=document.createElement("option");
+    o.value=opt; o.textContent=opt;
+    sel.appendChild(o);
+  });
+  sel.value = state[key] ?? "";
+  sel.addEventListener("change", e=>{
+    state[key] = e.target.value;
+    saveState();
+    render();
+    updateProgress();
+  });
+  return sel;
+}
+
+function createYesNo(key){
+  return createSelect({key, options:["yes","no"]});
+}
+
+function createText(key){
+  const inp = document.createElement("input");
+  inp.type = "text";
+  inp.dataset.key = key;
+  inp.value = state[key] ?? "";
+  inp.placeholder = "Type…";
+  inp.addEventListener("input", e=>{
+    state[key] = e.target.value;
+    saveState();
+    updateProgress();
+  });
+  return inp;
+}
+
+function createNumber(key, min, max){
+  const inp = document.createElement("input");
+  inp.type = "number";
+  inp.dataset.key = key;
+  if (min !== undefined) inp.min = min;
+  if (max !== undefined) inp.max = max;
+  inp.value = state[key] ?? "";
+  inp.placeholder = "Enter number";
+  inp.addEventListener("input", e=>{
+    state[key] = e.target.value;
+    saveState();
+    updateProgress();
+  });
+  return inp;
+}
+
+function render(){
+  const root = document.getElementById("form");
+  root.innerHTML = "";
+
+  QUESTIONS.forEach(section=>{
+    const card = document.createElement("div");
+    card.className = "card";
+    const h = document.createElement("h2");
+    h.textContent = section.section;
+    card.appendChild(h);
+
+    section.items.forEach(item=>{
+      if (!shouldShow(item)) return;
+
+      const q = document.createElement("div");
+      q.className = "q";
+
+      const lab = document.createElement("label");
+      lab.textContent = item.label;
+      q.appendChild(lab);
+
+      const row = document.createElement("div");
+      row.className = "row";
+
+      let input;
+      if (item.type==="yesno") input = createYesNo(item.key);
+      if (item.type==="select") input = createSelect({key:item.key, options:item.options});
+      if (item.type==="text") input = createText(item.key);
+      if (item.type==="number") input = createNumber(item.key, item.min, item.max);
+
+      row.appendChild(input);
+      q.appendChild(row);
+
+      card.appendChild(q);
+    });
+
+    root.appendChild(card);
+  });
+}
+
+function updateProgress(){
+  // count visible questions only
+  let visible = 0, answered = 0;
+  QUESTIONS.forEach(section=>{
+    section.items.forEach(item=>{
+      if (!shouldShow(item)) return;
+      visible++;
+      const v = state[item.key];
+      if (v !== undefined && String(v).trim() !== "") answered++;
+    });
+  });
+  const pct = visible ? Math.round((answered/visible)*100) : 0;
+  document.getElementById("progressText").textContent = `Progress: ${pct}%`;
+  document.getElementById("progressFill").style.width = `${pct}%`;
+}
+
+/* ---------------------------
+   PLAN LOGIC (BMI-free, teen-safe)
+----------------------------*/
+function normalize(){
+  setDefault("gender","Prefer not to say");
+  setDefault("weightUnit","lb");
+  setDefault("daysLift","3");
+  setDefault("sessionMins","45–60");
+  setDefault("stepsNow","3–6k");
+  setDefault("experience","Some (3–12 months)");
+  setDefault("proteinMeals","2 meals/day");
+  saveState();
+}
+
+function toLb(weight, unit){
+  const w = parseFloat(weight || "0");
+  if (!w) return 0;
+  return unit === "kg" ? w * 2.20462 : w;
+}
+
+function stepsTargets(s){
+  const map = {"<3k":4000, "3–6k":7000, "6–9k":9000, "9k+":10000};
+  let base = map[s.stepsNow] ?? 7000;
+
+  // BMI-free “ramp speed” using only bodyweight & pain flags (joint-friendly)
+  const wLb = toLb(s.weight, s.weightUnit);
+  const cautious = (s.painNow==="yes" || s.medical==="yes" || s.surgeries==="yes");
+  const heavier = (wLb && wLb >= 240); // not a judgment; just reduces impact ramp
+
+  const ramp = cautious ? 800 : heavier ? 900 : 1200;
+  return { base, wk4: base + ramp, wk8: base + ramp*2, wk12: base + ramp*3 };
+}
+
+function volumeDefaults(s){
+  // respectful, neutral: small differences in rep tolerance, not “body type” assumptions
+  const g = s.gender || "Prefer not to say";
+  const age = parseInt(s.age || "0", 10);
+  const cautious = (s.painNow==="yes" || s.medical==="yes" || s.surgeries==="yes");
+  const older = (age >= 40);
+
+  let setsPerMuscle = { low: 8, high: 14 };
+  let repRange = "6–12 reps (most sets)";
+
+  if (g === "Female") {
+    setsPerMuscle = { low: 9, high: 16 };
+    repRange = "8–15 reps (most sets)";
+  } else if (g === "Male") {
+    setsPerMuscle = { low: 8, high: 14 };
+    repRange = "6–12 reps (most sets)";
+  } else {
+    setsPerMuscle = { low: 8, high: 15 };
+    repRange = "6–15 reps (most sets)";
+  }
+
+  if (older) {
+    setsPerMuscle = { low: Math.max(6, setsPerMuscle.low - 2), high: Math.max(10, setsPerMuscle.high - 2) };
+  }
+  if (cautious) {
+    setsPerMuscle = { low: Math.max(6, setsPerMuscle.low - 2), high: Math.max(10, setsPerMuscle.high - 3) };
+  }
+
+  return { setsPerMuscle, repRange };
+}
+
+function trainingTemplate(s){
+  const days = parseInt(s.daysLift || "3", 10);
+  if (days <= 2) return "2-day Full Body";
+  if (days === 3) return "3-day Full Body A/B/C";
+  if (days === 4) return "4-day Upper/Lower";
+  return "5-day (Upper/Lower + accessories)";
+}
+
+function epley1RM(w, r){
+  // Epley: 1RM = w * (1 + reps/30). Safe-ish estimate, not a promise.
+  if (!w || !r) return 0;
+  return w * (1 + (r/30));
+}
+
+function calcProgressionText(s){
+  if (s.calcUse !== "yes") return "";
+  const w = parseFloat(s.calcWeight || "0");
+  const r = parseFloat(s.calcReps || "0");
+  const unit = s.calcUnit || "lb";
+  const lift = s.calcLift || "Lift";
+  if (!w || !r) return `PROGRESSION CALCULATOR:\n- Add your weight and reps to get an estimated training max.\n`;
+
+  const est = epley1RM(w, r);
+  const tm = est * 0.9; // training max
+  const startLow = tm * 0.65;
+  const startHigh = tm * 0.75;
+
+  const roundTo = (x)=> unit==="kg" ? Math.round(x*2)/2 : Math.round(x/5)*5; // kg to 0.5, lb to 5
+  return [
+    "PROGRESSION CALCULATOR (Optional):",
+    `- Lift: ${lift}`,
+    `- Estimated 1RM: ~${roundTo(est)} ${unit} (rough estimate)`,
+    `- Training Max (90%): ~${roundTo(tm)} ${unit}`,
+    `- Good starting “working weight” range: ~${roundTo(startLow)}–${roundTo(startHigh)} ${unit}`,
+    `- Progression idea: add 1–2 reps per set until the top of the rep range, then add a small amount of weight.`,
+    ""
+  ].join("\n");
+}
+
+function foodTemplate(s, teenMode){
+  const cook = s.cookOften === "yes";
+  const limits = (s.dietLimits==="yes" && (s.dietLimitText||"").trim()) ? ` (respecting: ${s.dietLimitText.trim()})` : "";
+  const proteinHint =
+    s.proteinMeals === "0–1 meals/day" ? "Start with 1 extra protein daily." :
+    s.proteinMeals === "2 meals/day" ? "Keep 2 protein meals consistent; add a 3rd if easy." :
+    "Keep protein consistent.";
+
+  const lines = [];
+  lines.push(`FOOD TEMPLATE${limits}:`);
+  if (teenMode) {
+    lines.push("- No aggressive restriction. Focus on consistent meals + recovery for training.");
+  } else {
+    lines.push("- Use repeatable meals. Adjust portions slowly based on energy, training, and consistency.");
+  }
+  lines.push(`- Protein habit: ${proteinHint}`);
+  if (cook) {
+    lines.push("- Simple structure: Protein + Carb + Color (fruit/veg) at 2–3 meals/day.");
+  } else {
+    lines.push("- No-cook structure: yogurt + fruit; sandwich + milk; rotisserie chicken + microwave rice; beans/lentils + wraps.");
+  }
+  if (s.sugaryDrinks==="yes") lines.push("- Sugary drinks: swap 1/day → water or zero-sugar for 2 weeks.");
+  if (s.lateSnacks==="yes") lines.push("- Late snacks: plan a portioned snack earlier or set a “kitchen closed” cue.");
+  lines.push("");
+  return lines.join("\n");
+}
+
+function supplementsBlock(s, teenMode){
+  const lines = [];
+  lines.push("SUPPLEMENTS (Optional, conservative):");
+  lines.push("- Protein powder: useful only if it helps you reach protein more easily (convenience tool).");
+  if (teenMode) {
+    lines.push("- Creatine: discuss with a parent/guardian and clinician first if you’re under 18.");
+  } else {
+    lines.push("- Creatine monohydrate: can support strength for many people; start only if it fits your routine.");
+  }
+  lines.push("- Vitamin D / Omega-3: consider if intake is low (best guided by a clinician).");
+  lines.push("- Avoid stimulant “fat burners” and aggressive appetite suppressors.");
+  lines.push("");
+  return lines.join("\n");
+}
+
+function checkInAdjustments(s){
+  // Adjust weeks 9–12 lever based on adherence + energy (simple, practical)
+  const wk8A = s.wk8Adherence || "Not started";
+  const wk8E = s.wk8Energy || "Okay";
+
+  if (wk8A === "75%+" && wk8E === "Good") {
+    return "- Adjustment: add 1 extra set to 1–2 key exercises OR add 5–10 minutes of easy conditioning weekly.\n";
+  }
+  if (wk8A === "<50%" || wk8A === "Not started") {
+    return "- Adjustment: reduce complexity. Use the minimum plan: 2–3 lifts/week + steps + one nutrition habit.\n";
+  }
+  if (wk8E === "Low") {
+    return "- Adjustment: deload week (reduce sets ~30–40%) and prioritize sleep + meals.\n";
+  }
+  return "- Adjustment: keep plan the same; focus on consistency and small weekly progression.\n";
+}
+
+function buildTrainingSchedule(s, teenMode){
+  const days = parseInt(s.daysLift || "3", 10);
+  const gym = s.gym === "yes";
+  const cautious = (s.painNow==="yes" || s.medical==="yes" || s.surgeries==="yes");
+  const exp = s.experience || "Some (3–12 months)";
+
+  const lines = [];
+  lines.push("TRAINING SCHEDULE (Example week):");
+  lines.push(`- Setting: ${gym ? "Gym" : "Home"} | Experience: ${exp}`);
+  lines.push("- Intensity rule: stop sets with ~1–3 good reps left (don’t grind every set).");
+  if (cautious) lines.push("- Pain-smart rule: only pain-free ranges/variations; prioritize controlled tempo and machines if available.");
+  if (teenMode) lines.push("- Under 18: focus on technique, consistency, and steady progression (not extreme intensity).");
+  lines.push("");
+
+  function gymDay(name, focus){
+    if (focus==="FB-A") return `${name}: Squat/Leg press, Bench/DB press, Row, Hamstring hinge, Core`;
+    if (focus==="FB-B") return `${name}: Hinge (RDL), Overhead press, Lat pulldown/Pull-up, Split squat, Core`;
+    if (focus==="FB-C") return `${name}: Front squat/Goblet, Incline press, Cable row, Hip thrust, Core`;
+    if (focus==="Upper") return `${name}: Press, Row, Pulldown, Lateral raise, Arms`;
+    if (focus==="Lower") return `${name}: Squat pattern, Hinge pattern, Split squat, Calf, Core`;
+    return `${name}: Full body basics`;
+  }
+  function homeDay(name, focus){
+    const eq = s.homeEquip || "None";
+    if (eq==="None") {
+      return `${name}: Bodyweight squat, Push-ups (elevated), Backpack row, Hip hinge (good morning), Plank`;
+    }
+    if (focus==="FB-A") return `${name}: Goblet squat, Push-up/DB press, One-arm row, RDL, Core`;
+    if (focus==="FB-B") return `${name}: Split squat, Overhead press, Row/Pull-up, Hip hinge, Core`;
+    if (focus==="FB-C") return `${name}: Squat variation, Incline press, Row, Hip thrust/bridge, Core`;
+    if (focus==="Upper") return `${name}: Press, Row, Pull (band/pull-up), Shoulders, Arms`;
+    if (focus==="Lower") return `${name}: Squat pattern, Hinge pattern, Split squat, Calf, Core`;
+    return `${name}: Full body basics`;
+  }
+
+  if (days <= 2){
+    lines.push(gym ? gymDay("Day 1","FB-A") : homeDay("Day 1","FB-A"));
+    lines.push(gym ? gymDay("Day 2","FB-B") : homeDay("Day 2","FB-B"));
+  } else if (days === 3){
+    lines.push(gym ? gymDay("Day 1","FB-A") : homeDay("Day 1","FB-A"));
+    lines.push(gym ? gymDay("Day 2","FB-B") : homeDay("Day 2","FB-B"));
+    lines.push(gym ? gymDay("Day 3","FB-C") : homeDay("Day 3","FB-C"));
+  } else {
+    lines.push(gym ? gymDay("Day 1","Upper") : homeDay("Day 1","Upper"));
+    lines.push(gym ? gymDay("Day 2","Lower") : homeDay("Day 2","Lower"));
+    lines.push(gym ? gymDay("Day 3","Upper") : homeDay("Day 3","Upper"));
+    lines.push(gym ? gymDay("Day 4","Lower") : homeDay("Day 4","Lower"));
+    if (days === 5) lines.push(gym ? gymDay("Day 5","FB-C") : homeDay("Day 5","FB-C"));
+  }
+
+  lines.push("");
+  return lines.join("\n");
+}
+
+function generate(){
+  normalize();
+  const s = state;
+
+  const age = parseInt(s.age || "0", 10);
+  const teenMode = age && age < 18;
+
+  const wLb = toLb(s.weight, s.weightUnit);
+  const steps = stepsTargets(s);
+  const vol = volumeDefaults(s);
+  const template = trainingTemplate(s);
+
+  const lines = [];
+  lines.push("12-WEEK FITNESS PLAN (Educational)");
+  lines.push("");
+
+  // Guardrails for minors + safety flags
+  if (teenMode){
+    lines.push("AGE GUARDRAILS (Under 18):");
+    lines.push("- No aggressive dieting language in this plan. Focus: strength, skill, sleep, consistent meals, and stress management.");
+    lines.push("- Supplements: discuss with a parent/guardian and a clinician first.");
+    lines.push("");
+  }
+
+  if (s.edHistory==="yes"){
+    lines.push("IMPORTANT (Eating history):");
+    lines.push("- You reported a history of disordered eating/extreme restriction.");
+    lines.push("- This plan avoids aggressive calorie restriction and focuses on stable meals, energy, and performance habits.");
+    lines.push("- Consider professional support if food/weight thoughts feel intense or stressful.");
+    lines.push("");
+  }
+
+  if (s.painNow==="yes"){
+    lines.push("SAFETY NOTE (Pain):");
+    lines.push("- Avoid painful movements/ranges. Use pain-free substitutions and controlled tempo.");
+    lines.push("- If pain is sharp, worsening, or affects daily function, get evaluated by a qualified professional.");
+    lines.push("");
+  }
+  if (s.medical==="yes" || s.surgeries==="yes"){
+    lines.push("SAFETY NOTE (Medical):");
+    lines.push("- Keep intensity moderate and follow professional guidance as needed.");
+    lines.push("");
+  }
+
+  // Setup summary
+  lines.push("YOUR SETUP:");
+  lines.push(`- Age: ${s.age || "—"} | Gender: ${s.gender || "—"} | Weight: ${s.weight || "—"} ${s.weightUnit || ""}`);
+  lines.push(`- Lifting days/week: ${s.daysLift || "—"} | Session length: ${s.sessionMins || "—"}`);
+  lines.push(`- Template: ${template} | Gym access: ${s.gym || "—"} | Experience: ${s.experience || "—"}`);
+  if (s.dietLimits==="yes" && (s.dietLimitText||"").trim()) lines.push(`- Dietary limits: ${s.dietLimitText.trim()}`);
+  lines.push("");
+
+  // Volume / rep guidance
+  lines.push("TRAINING GUIDELINES (personalized defaults):");
+  lines.push(`- Rep range: ${vol.repRange}`);
+  lines.push(`- Weekly hard sets per muscle (general target): ~${vol.setsPerMuscle.low}–${vol.setsPerMuscle.high} sets`);
+  lines.push("- Progression: add reps first; when you hit the top of the rep range, add a small amount of weight.");
+  lines.push("");
+
+  // Weekly schedule
+  lines.push(buildTrainingSchedule(s, teenMode));
+
+  // Steps + conditioning
+  lines.push("ACTIVITY (Steps-first approach):");
+  lines.push(`- Steps now: ${s.stepsNow || "—"} → Targets: Week 4 ~${steps.wk4}/day, Week 8 ~${steps.wk8}/day, Week 12 ~${steps.wk12}/day`);
+  if (s.likesCardio==="yes" && s.painNow!=="yes" && s.medical!=="yes") {
+    lines.push("- Optional conditioning: 2 sessions/week, 10–20 minutes easy/moderate (bike, incline walk, rower).");
+  } else {
+    lines.push("- Conditioning: optional. Walking + steps are enough to start.");
+  }
+  lines.push("");
+
+  // 12-week phases
+  lines.push("WEEKS 1–4 (Foundation)");
+  lines.push("- Goal: make it automatic (schedule, technique, and basic nutrition habits).");
+  lines.push("- Keep workouts consistent; don’t chase soreness.");
+  lines.push("");
+
+  lines.push("WEEKS 5–8 (Build)");
+  lines.push("- Goal: steady overload (slightly more reps/weight over time).");
+  lines.push("- Add 1 set to a couple key movements if recovery is good.");
+  lines.push("");
+
+  lines.push("WEEKS 9–12 (Optimize)");
+  lines.push("- Goal: keep it repeatable. One lever at a time (heavier OR more sets).");
+  if (s.checkIns==="yes") lines.push(checkInAdjustments(s).trimEnd());
+  lines.push("");
+
+  // Nutrition (BMI-free)
+  // Protein guideline uses weight only (no BMI)
+  if (wLb){
+    const pLow = Math.round(wLb * 0.6);
+    const pHigh = Math.round(wLb * 0.8);
+    lines.push("PROTEIN GUIDELINE (BMI-free, weight-based):");
+    lines.push(`- Flexible target range: ~${pLow}–${pHigh} g/day (not mandatory; consistency matters more).`);
+    lines.push("");
+  }
+
+  lines.push(foodTemplate(s, teenMode));
+
+  // Mindset & autoregulation
+  lines.push("MINDSET + AUTOREGULATION (how to stay consistent):");
+  if (s.consistencyMain==="yes"){
+    lines.push("- Minimum session rule: if you’re slammed, do 20 minutes (one squat/hinge + one push + one pull).");
+  }
+  if (s.sleep7==="no"){
+    lines.push("- Sleep lever: pick ONE change (bedtime -30 min OR consistent wake time OR screens off 30 min before bed).");
+  }
+  if (s.stressHigh==="yes"){
+    lines.push("- Stress lever: daily 10-minute walk or 5-minute breathing reset after school/work.");
+  }
+  lines.push("- Bad recovery day rule: reduce sets by ~30% and keep form perfect (don’t quit entirely).");
+  lines.push("");
+
+  // Supplements
+  lines.push(supplementsBlock(s, teenMode));
+
+  // Pain substitutions
+  if (s.painNow==="yes"){
+    lines.push("PAIN-SMART SUBSTITUTIONS (general):");
+    lines.push("- Swap barbell squat → goblet squat / leg press (pain-free range).");
+    lines.push("- Swap bench press → dumbbell press or incline push-ups (pain-free).");
+    lines.push("- Swap deadlift → light RDL or hip hinge you can fully control (pain-free).");
+    lines.push("");
+  }
+
+  // Progression calculator output
+  const calc = calcProgressionText(s);
+  if (calc) lines.push(calc);
+
+  const out = lines.join("\n");
+  document.getElementById("output").value = out;
+
+  // show print button
+  document.getElementById("printBtn").classList.remove("hidden");
+}
+
+/* ---------------------------
+   RESET / PRINT
+----------------------------*/
+function resetAll(){
+  localStorage.removeItem(STORAGE_KEY);
+  state = {};
+  render();
+  updateProgress();
+  document.getElementById("output").value = "";
+  document.getElementById("printBtn").classList.add("hidden");
+}
+
+function printPDF(){
+  // User chooses “Save as PDF” in the print dialog.
+  window.print();
+}
+
+document.getElementById("buildBtn").addEventListener("click", generate);
+document.getElementById("printBtn").addEventListener("click", printPDF);
+document.getElementById("resetBtn").addEventListener("click", resetAll);
+
+render();
+normalize();
+updateProgress();
+</script>
+</body>
+</html>
