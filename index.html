@@ -7,42 +7,112 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Fitness Intake → 12-Week Plan</title>
   <style>
-    :root { 
-  --b: #E6EAF0;     /* border */
-  --t: #111111;     /* text */
-  --m: #667085;     /* muted text */
-  --bg: #F7F9FC;    /* page background */
-  --card: #FFFFFF;  /* card background */
-  --accent: #2F80ED;/* primary accent * }
-    body {font-family: Inter, system-ui, Arial, sans-serif;
+    :root { <style>
+:root {
+  --b: #E6EAF0;
+  --t: #111111;
+  --m: #667085;
+  --bg: #F4F7FB;
+  --card: #FFFFFF;
+  --accent: #2F80ED;
+}
+
+body {
+  font-family: Inter, system-ui, Arial, sans-serif;
   color: var(--t);
   background: var(--bg);
-  max-width: 980px;
-  margin: 24px auto;
-  padding: 0 16px;} 
-    h1 { font-size: 1.8rem; margin: 0 0 6px; }
-    h2 { margin: 0 0 10px; font-size: 1.2rem; }
-    .muted { color:var(--m); }
-    .card { border: 1px solid var(--b); border-radius: 14px; padding: 16px; margin: 14px 0; }
-    .q { padding: 12px 0; border-top: 1px dashed var(--b); }
-    .q:first-child { border-top: 0; padding-top: 0; }
-    label { font-weight: 650; display:block; margin-bottom: 8px; }
-    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
-    select, input[type="number"], input[type="text"] {
-      padding: 10px 12px; border-radius: 12px; border: 1px solid var(--b); min-width: 220px; }
-    textarea { width:100%; min-height: 320px; padding: 12px; border-radius: 12px; border: 1px solid var(--b); }
-    button { padding: 10px 14px; border-radius: 12px; border: 1px solid var(--b); background: #fafafa; cursor:pointer; }
-    button:hover { background:#f2f2f2; }
-    .hidden { display:none; }
-    .warn { background:#fff7e6; border:1px solid #ffe2a8; padding:10px 12px; border-radius: 12px; }
-    .danger { background:#ffecec; border:1px solid #ffc0c0; padding:10px 12px; border-radius: 12px; }
-    .pill { display:inline-block; padding: 4px 10px; border:1px solid var(--b); border-radius: 999px; font-size: 0.9rem; margin-right: 8px; }
-    .topbar { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:center; }
-    .progressWrap { flex: 1; min-width: 220px; }
-    .progressBar { height: 10px; background:#f2f2f2; border:1px solid var(--b); border-radius:999px; overflow:hidden; }
-    .progressFill { height:100%; width:0%; background:#ddd; }
-    .printOnly { display:none; }
+  max-width: 1000px;
+  margin: 32px auto;
+  padding: 0 20px;
+  font-size: 18px;
+  line-height: 1.6;
+}
 
+h1, h2 {
+  font-family: Poppins, Inter, sans-serif;
+  letter-spacing: -0.5px;
+}
+
+h1 { font-size: 44px; }
+h2 { font-size: 26px; margin-bottom: 16px; }
+
+.muted { color: var(--m); }
+
+.card {
+  background: var(--card);
+  border-radius: 18px;
+  padding: 28px;
+  margin: 28px 0;
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.06);
+  border: 1px solid var(--b);
+}
+
+.q {
+  padding: 22px 0;
+  border-bottom: 1px solid var(--b);
+}
+
+.q:last-child {
+  border-bottom: none;
+}
+
+label {
+  font-weight: 600;
+  font-size: 18px;
+  margin-bottom: 12px;
+  display: block;
+}
+
+select,
+input[type="number"],
+input[type="text"] {
+  font-size: 17px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--b);
+  min-width: 260px;
+  background: #FAFBFF;
+}
+
+textarea {
+  width: 100%;
+  min-height: 340px;
+  padding: 18px;
+  border-radius: 14px;
+  border: 1px solid var(--b);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+button {
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+button:hover {
+  filter: brightness(0.95);
+}
+
+header {
+  margin-bottom: 30px;
+}
+
+.progressBar {
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progressFill {
+  background: var(--accent);
+}
+</style>
     /* Print-to-PDF friendly */
     @media print {
       body { max-width: none; margin: 0; padding: 0; }
