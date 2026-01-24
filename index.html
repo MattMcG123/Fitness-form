@@ -1,13 +1,25 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Poppins:wght@600&display=swap" rel="stylesheet">
+  <link rel="icon" href="favicon.ico">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Fitness Intake → 12-Week Plan</title>
   <style>
-    :root { --b:#e6e6e6; --t:#111; --m:#666; --bg:#fff; }
-    body { font-family: system-ui, Arial, sans-serif; color:var(--t); background:var(--bg);
-      max-width: 980px; margin: 24px auto; padding: 0 16px; }
+    :root { 
+  --b: #E6EAF0;     /* border */
+  --t: #111111;     /* text */
+  --m: #667085;     /* muted text */
+  --bg: #F7F9FC;    /* page background */
+  --card: #FFFFFF;  /* card background */
+  --accent: #2F80ED;/* primary accent * }
+    body {font-family: Inter, system-ui, Arial, sans-serif;
+  color: var(--t);
+  background: var(--bg);
+  max-width: 980px;
+  margin: 24px auto;
+  padding: 0 16px;} 
     h1 { font-size: 1.8rem; margin: 0 0 6px; }
     h2 { margin: 0 0 10px; font-size: 1.2rem; }
     .muted { color:var(--m); }
@@ -17,8 +29,7 @@
     label { font-weight: 650; display:block; margin-bottom: 8px; }
     .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
     select, input[type="number"], input[type="text"] {
-      padding: 10px 12px; border-radius: 12px; border: 1px solid var(--b); min-width: 220px;
-    }
+      padding: 10px 12px; border-radius: 12px; border: 1px solid var(--b); min-width: 220px; }
     textarea { width:100%; min-height: 320px; padding: 12px; border-radius: 12px; border: 1px solid var(--b); }
     button { padding: 10px 14px; border-radius: 12px; border: 1px solid var(--b); background: #fafafa; cursor:pointer; }
     button:hover { background:#f2f2f2; }
